@@ -49,7 +49,7 @@ class Resource(object):
     def options(self,request,*args,**kwargs):
         method_not_allow()
 
-class Regist(object):
+class Register(object):
     
     def __init__(self, version='v1', *args, **kwargs):
         self.version=version
@@ -65,4 +65,6 @@ class Regist(object):
             urlpatterns.append(
                 url(r'^{version}/{name}$'.format(version=self.version,name=resource.name),csrf_exempt(resource.enter))
             )
+        return urlpatterns
+
         

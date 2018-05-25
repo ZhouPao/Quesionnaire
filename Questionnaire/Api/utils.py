@@ -3,7 +3,7 @@ import json
 # Create your views here.
 from django.http.response import HttpResponse
 
-def mthod_not_allow():
+def method_not_allow():
     return HttpResponse(json.dumps({
         'state':405,
         'msg': 'not found method'
