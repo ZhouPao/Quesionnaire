@@ -7,7 +7,7 @@ from Api.utils import method_not_allow
 # Create your views here.
 class Resource(object):
     
-    def __init__(self, name,*args, **kwargs):
+    def __init__(self,name=None):
         self.name=name or self.__class__.__name__.lower()
     
     #This is url entry
@@ -16,38 +16,38 @@ class Resource(object):
         method=request.method
         
         if method=='GET':
-            response=self.get(self,request,*args,**kwargs)
+            response=self.get(request,*args,**kwargs)
         elif method=='POST':
-            response=self.post(self,request,*args,**kwargs)
+            response=self.post(request,*args,**kwargs)
         elif method=='PUT':
-            response=self.post(self,request,*args,**kwargs)
+            response=self.post(request,*args,**kwargs)
         elif method=='DELETE':
-            response=self.delete(response=self.post(self,request,*args,**kwargs))
+            response=self.delete(request,*args,**kwargs)
         elif method=='HEAD':
-            response=self.head(response=self.post(self,request,*args,**kwargs)) 
+            response=self.head(request,*args,**kwargs)
         elif method=='OPTIONS':
-            response=self.options(response=self.post(self,request,*args,**kwargs))
+            response=self.options(request,*args,**kwargs)
         else:
             response=method_not_allow()
         return response
     
     def get(self,request,*args,**kwargs):
-        method_not_allow()
+        return method_not_allow()
     
     def post(self,request,*args,**kwargs):
-        method_not_allow()
+        return method_not_allow()
     
     def put(self,request,*args,**kwargs):
-        method_not_allow()
+        return method_not_allow()
     
     def delete(self,request,*args,**kwargs):
-        method_not_allow()
+        return method_not_allow()
     
     def head(self,request,*args,**kwargs):
-        method_not_allow()
+        return method_not_allow()
     
     def options(self,request,*args,**kwargs):
-        method_not_allow()
+        return method_not_allow()
 
 class Register(object):
     
@@ -66,5 +66,4 @@ class Register(object):
                 url(r'^{version}/{name}$'.format(version=self.version,name=resource.name),csrf_exempt(resource.enter))
             )
         return urlpatterns
-
         
