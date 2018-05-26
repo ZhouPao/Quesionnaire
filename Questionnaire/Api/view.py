@@ -345,3 +345,91 @@ class QuestionnaireResource(Resource):
         return json_response({
             'deleted_ids':deleted_ids
         })
+
+
+#question resource
+class QustionResource(Resource):
+
+    def put(self,request,*args,**kwargs):
+        data=request.PUT
+        questionnaire_id=int(data.get('questionnaire_id',0))
+        questionnaire_exsits=Questionnaire.objects.filter(id=questionnaire_id,
+                    customer=request.user.customer,state__in=[0,1,2,3])
+        if questionnaire_exsits:
+            questionnaire=questionnaire_exsits[0]
+        else:
+            return parma_error({
+                'questionnaire_id':'not found this quesionnaire or can not update this questionnaire'
+            })
+        #add questions
+        question=Question()
+        question.questionnaire=questionnaire
+        question.title=data.get('title','question title')
+        question.is_checkbox=data.get('is_checkbox',False)
+        question.save()
+        questionnaire.state=0
+        questionnaire.save()
+        #add to questionitems
+        #item=['aaaa','bbbb','ccccc']
+        items=data.get('items',[])
+
+        for item in items:
+            question_item=QuestionItem()
+            question_item.question=question
+            question_item.content=item
+            question_item.save()
+        
+        return json_response({
+            'id':question.id
+        })
+    
+    def post(self,request,*args,**kwargs):
+        data=request.POST
+        question_id=int(data.get('question_id',0))
+        question_exsits=Question.objects.filter(id=question_id,
+                    customer=request.user.customer,state__in=[0,1,2,3])
+        if question_exsits:
+            question=question_exsits[0]
+        else:
+            return parma_error({
+                'question_id':'not found this quesionnaire or can not update this questionnaire'
+            })
+        #add questions
+        question=question_exsits[0]
+        question.title=data.get('title','question title')
+        question.is_checkbox=data.get('is_checkbox',False)
+        question.save()
+        questionnaire=question.quesionnaire
+        questionnaire.state=0
+        questionnaire.save()
+
+        items=data.get('items',[])
+        question.questionitem_set.all().delete()
+        for item in items:
+            question_item=QuestionItem()
+            question_item.question=question
+            question_item.content=item
+            question_item.save()
+        
+        return json_response({
+            'question':'update is success!'
+        })
+    
+    def delete(self,request,*args,**kwargs):
+        data=request.DELELTE
+        ids=data.get('ids',[])
+        objs=Question.objects.filter(id__id=ids,questionnaire__state__in=[0,1,2,3]
+                ,questionnaire__customer=request.user.customer)
+        deleted_ids=[obj.id for obj in objs]
+
+        questionnaire_set=set()
+        for obj in objs:
+            questionnaire_set.add(obj.quesionnaire)
+        
+        for questionnaire in questionnaire_set:
+            questionnaire.state=0
+            questionnaire.save()
+        objs=delete()
+        return json_response({
+            'delete_ids' :deleted_ids
+        })
