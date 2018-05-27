@@ -617,5 +617,93 @@ class AnswerResource(Resource):
         return json_response(data)
 
 
+class AnswerItemResource(Resource):
+    
+    def _save_answers(self,data,request):
+        # judge the questionaire is exist
+        questionnaire_id = data.get('questionnaire_id', 0)
+        questionnaire_exist = Questionnaire.objects.filter(
+            id=questionnaire_id, state=4, deadline__gt=timezone.now())
+        if not questionnaire_exist:
+            return parma_error({
+                "questionnaire_id": "questionaire is not exist or can not submit answer "
+            })
+        # can be submit answer in questionnaire
+        questionnaire = questionnaire_exist[0]
+        has_joined = Answer.objects.filter(
+            questionnaire=questionnaire, userinfo=request.user.userinfo, is_done=False)
+        if not has_joined:
+            return parma_error({
+                'questionnaire_id': "had not joined questionnaire,or this questionaire is over"
+            })
+        
+        # question that can be submit to the answer
+        questions=data.get('questions',[])
+        question_ids=[item['question_id'] for item in questions]
+        question_can_answer=Question.objects.filter(
+            id__in=question_ids,questionnaire=questionnaire
+        )
+        question_can_answer_ids=[obj.id for obj in question_can_answer]
 
+        AnswerItem.objects.filter(question__in=question_can_answer,
+                        userinfo=request.user.userinfo).delete()
+        # save the user answeritem
+
+        for question in questions:
+            if question['question_id'] in question_can_answer_ids:
+                question_obj=Question.objects.get(id=question['question_id'])
+                answer = AnswerItem()
+                answer.question=question_obj
+                answer.userinfo=request.user.userinfo
+                items=QuestionItem.objects.filter(id__in=question['items'],question=question_obj)
+                if items.count()>1 and question_obj.is_checkbox:
+                    answer.save()
+                    answer.items.set(items)
+                elif items.count()==1:
+                    answer.save()
+                    answer.items.set(items)
+                else:
+                    return parma_error({
+                        "warnning":"parmas is error"
+                    })
+        
+        answer=has_joined[0]
+        is_done=data.get('is_done',False)
+        answer.is_done=is_done
+        answer.save()
+        return json_response({
+            'anser':'submit is success'
+        })
+        
+
+    def put(self,request,*args,**kwargs):
+        data=request.PUT
+        response=self._save_answers(data,request)
+        return response
+    
+    def get(self,request,*args,**kwargs):
+        data=request.GET
+        questionnaire_id = data.get('questionnaire_id', 0)
+        has_joined=Answer.objects.filter(userinfo=request.user.userinfo,
+                    questionnaire__id=questionnaire_id)
+        if not has_joined:
+            return json_response({
+                'questionnaire_id':"have not some formation"
+            })
+        answers=AnswerItem.objects.filter(userinfo=request.user.userinfo,
+                    question__questionnaire=questionnaire)
+        data=[
+            {
+                "question_id":answer.question.id,
+                "items":[{'id' : item.id} for item in answer.item.all()]
+            } for answer in answers
+        ]
+        
+        return json_response(data)
+    
+    def post(self,request,*args,**kwargs):
+        data=request.POST
+        response=self._save_answers(data,request)
+        return response
+    
     
