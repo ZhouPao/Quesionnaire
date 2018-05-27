@@ -526,4 +526,96 @@ class QuestionnaireStateResource(Resource):
         })
 
 
-# 
+# answer
+class AnswerResource(Resource):
+    @atomic
+    @userinfo_required
+    def put(self,request,*args,**kwargs):
+        data=request.PUT
+        questionnaire_id=int(data.get('questionnaire_id',0))
+        questionnaire_exits=Questionnaire.objects.filter(id=questionnaire_id,
+                state=4)
+        if not questionnaire_exits:
+            return json_response({
+                "questionnaire_id":"not found questonnaire or questionnaire have not issue"
+            })
+        # judge had joined in this quesionnaire
+        questionnaire=questionnaire_exits[0]
+        has_joined=Questionnaire.objects.filter(userinfo=request.user.userinfo,
+                questionnaire=questionnaire)
+        if has_joined:
+            return json_response({
+                "questionnaire_id":'had joined this questionnaire'
+            }) 
+        has_joined_count=Questionnaire.objects.filter(questionnaire.quesionnaire).count()
+        if questionnaire.quantity<=has_joined_count:
+            return json_response({
+                "quesionnire_id":'this questionnaire joined person had power'
+            })
+        if questionnaire.deadline<timezone.now():
+            return json_response({
+                'questionnaire_id':'this questionnaire is over'
+            })
+        
+        # create joined formation
+        answer=Answer()
+        answer.userinfo=request.user.userinfo
+        answer.questionnaire=questionnaire
+        answer.datetime=datetime.now()
+        answer.is_done=False
+        answer.save()
+        # update the questionnaire quality
+        questionnaire.free_count=questionnaire.free_count-1
+        questionnaire.save()
+        return json_response({
+            'id':answer.id
+        })
+
+    
+    @atomic
+    @userinfo_required
+    def delete(self,request,*args,**kwargs):
+        data=request.DELETE
+        ids=data.get('ids',[])
+        objs=Answer.objects.filter(id__in=ids,userinfo=request.user.userinfo,
+                    is_done=False)
+        deleted_ids=[obj.id for obj in objs]
+        #update questionnaire free_count
+        for obj in objs:
+            questionnaire=obj.quesionnaire
+            questionnaire.free_count=questionnaire.free_count+1
+            questionnaire.save()
+        objs.delete()
+        return json_response({
+            'deleted_ids':deleted_ids
+        })
+
+    
+    @atomic
+    @userinfo_required
+    def get(self,request,*args,**kwargs):
+        data=request.GET
+        limit=abs(int(data.get('limit',30)))
+        start_id = data.get('start_id',0)
+        is_done=data.get('is_done',False)
+        objs=Answer.objects.filter(id__gt=start_id,userinfo=request.user.userinfo,
+                    is_done=False)
+        data=[]
+        for obj in objs:
+            answer_dict=dict()
+            answer_dict['id']=obj.id
+            answer_dict['datetime']=datetime.strftime(
+                obj.datetime,"%Y-%m-%d"
+            )
+            answer_dict['is_done']=obj.is_done
+            answer_dict['questionnaire']={
+                'id':obj.quesionnaire.id,
+                'title':obj.quesionnaire.title
+            }
+            data.append(answer_dict)
+        #return client
+        return json_response(data)
+
+
+
+    
