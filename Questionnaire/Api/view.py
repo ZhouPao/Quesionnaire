@@ -15,6 +15,7 @@ from django.utils import timezone
 from Question.models import *
 from Api.resources import Resource
 from Api.utils import *
+from Api.decorators import *
 
 
 # get regist code
@@ -200,7 +201,8 @@ class UserLoginResource(Resource):
 
 
 class QuestionnaireResource(Resource):
-
+    
+    @customer_required
     def get(self,request,*args,**kwargs):
         data=request.GET
         state=data.get('state',False)
@@ -268,7 +270,7 @@ class QuestionnaireResource(Resource):
             data.append(obj_dict)
         return json_response(data)
 
-
+    @customer_required
     def post(self,request,*args,**kwargs):
         data=request.POST
         questionnaire_id=int(data.get('requestionnaire_id',0))
@@ -303,7 +305,8 @@ class QuestionnaireResource(Resource):
         return json_response({
             'msg':'update requestionnaire is success!'
         })
-            
+
+    @customer_required    
     def put(self,request,*args,**kwargs):
         data=request.PUT
         questionnaire=Questionnaire()
@@ -335,7 +338,8 @@ class QuestionnaireResource(Resource):
         return json_response({
             'questionnaire_id':questionnaire.id
         })
-            
+
+    @customer_required   
     def delete(self,request,*args,**kwargs):
         data =request.DELETE
         ids=data.get('ids',[])
@@ -349,7 +353,9 @@ class QuestionnaireResource(Resource):
 
 #question resource
 class QustionResource(Resource):
-
+    
+    @atomic
+    @customer_required
     def put(self,request,*args,**kwargs):
         data=request.PUT
         questionnaire_id=int(data.get('questionnaire_id',0))
@@ -383,6 +389,8 @@ class QustionResource(Resource):
             'id':question.id
         })
     
+    @atomic
+    @customer_required
     def post(self,request,*args,**kwargs):
         data=request.POST
         question_id=int(data.get('question_id',0))
@@ -415,6 +423,8 @@ class QustionResource(Resource):
             'question':'update is success!'
         })
     
+    @atomic
+    @customer_required
     def delete(self,request,*args,**kwargs):
         data=request.DELELTE
         ids=data.get('ids',[])
@@ -433,3 +443,87 @@ class QustionResource(Resource):
         return json_response({
             'delete_ids' :deleted_ids
         })
+
+  
+class QuestionnaireCommentResource(Resource):
+    
+    @customer_required
+    def get(self,request,*args,**kwargs):
+        #create the comment
+        data=request.GET
+        questionnaire_id=int(data.get('questionnaire_id',0))
+        # find this questionnaire
+        questionnaire_exists=Questionnaire.objects.filter(id=questionnaire_id,
+                    customer=request.user.customer)
+        if not questionnaire_exists:
+            return parma_error({
+                'requestionnaire_id':'have not this questionnaire'
+            })
+        questionnaire=questionnaire_exists[0]
+        comments=[{
+            'id':item.id,
+            'datetime':datetime.strftime(item.datetime,'%Y-%m-%d'),
+            'comment':item.comment
+        } for item in questionnaire.questionnairecomment_set.all()]
+
+        return json_response(comments)
+
+    
+    @atomic
+    @superuser_required
+    def put(self,request,*args,**kwargs):
+        data= request.PUT
+        questionnaire_id =int(data.get('questionnaire_id',0))
+        questionnaire_exsits=Questionnaire.objects.filter(id=questionnaire_id,state=1)
+        if not questionnaire_exsits:
+            return parma_error({
+                'questionnaire_id':'not found questionnaire or can not exemine'
+            })
+        questionnaire=questionnaire_exsits[0]
+        is_agree=data.get('is_agree',False)
+        comment=data.get('comment','')
+        if is_agree:
+            questionnaire.sate=3
+            questionnaire.save()
+            return json_response({
+                'comment':'exemine is success'
+            })
+        if comment:
+            questionnaire.state=2
+            questionnaire.save()
+            questionnaire_comment=QuestionnaireComment()
+            questionnaire_comment.datetime=datetime.now()
+            questionnaire_comment.comment=comment
+            questionnaire_comment.questionnaire=questionnaire
+            questionnaire_comment.save()
+            return json_response({
+                'comment':'submit comment success!'
+            })
+        return parma_error({
+            'comment':'not submit comment formation!'
+        })
+
+
+# issue a questionnaire
+class QuestionnaireStateResource(Resource):
+    
+    @atomic
+    @customer_required
+    def put(self,request,*args,**kwargs):
+        data=request.PUT
+        questionnaire_id=int(data.get('questionnaire_id',0))
+        questionnaire_exits=Questionnaire.objects.filter(id=questionnaire_id,
+           customer=request.user.customer,state=3)
+        if not questionnaire_exits:
+            return parma_error({
+                'requestionnire_id':'have not found questionnaire or questionnaire can not examie'
+            })
+        questionnaire=questionnaire_exits[0]
+        questionnaire.state=4
+        questionnaire.save()
+        return json_response({
+            'state':'Issue success'
+        })
+
+
+# 
