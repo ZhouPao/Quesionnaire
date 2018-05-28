@@ -14,6 +14,7 @@ api.regist(QuestionnaireCommentResource('questionnaire_comment'))
 api.regist(QuestionnaireStateResource('questionnaire_state'))
 api.regist(AnswerResource('answer'))
 api.regist(AnswerItemResource('answer_item'))
+api.regist(CommentQuestionnaireResource('comment_questionnaire'))
 
 
 

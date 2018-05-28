@@ -707,3 +707,73 @@ class AnswerItemResource(Resource):
         return response
     
     
+#admin issue questionnaire
+class CommentQuestionnaireResource(Resource):
+    
+    @superuser_required
+    def get(self ,request,*args,**kwargs):
+        data=request.GET
+        #wether to return the tetails back 
+        with_detail=data.get('with_detail','')
+        # display number in every page
+        limit=abs(int(data.get('limit',10)))
+        # start id
+        start_id = abs(int(data.get('start_id',0)))
+        # visite how numbers page
+        page=abs(int(data.get('page',1)))
+        # search all Reexaim questionnaire
+        all_objs=Questionnaire.objects.filter(sate=1,id__gt=start_id)
+        # get all Reexaim questionnaire
+        count=all_objs.count()
+        # calculate sum pages
+        pages=math.ceil(count/limit)
+        # judge need to page number
+        if page>=pages:
+            page=pages
+        if page==0:
+            page=1
+        #take out the corresponding page
+        start=(page-1)*limit
+        end=page*limit
+        obj=all_objs[start:end]
+        # create return data
+        data=[]
+        for obj in objs:
+            #create single questionnaire 
+            obj_dict={}
+            obj_dict['id']=obj.id
+            obj_dict['title']=obj.title
+            obj_dict['logo'] = obj.logo
+            obj_dict['datetime'] = datetime.strftime(obj.datetime, "%Y-%m-%d")
+            obj_dict['deadline'] = datetime.strftime(obj.deadline, "%Y-%m-%d")
+            obj_dict['catogory'] = obj.catogory
+            obj_dict['state'] = obj.state
+            obj_dict['quantity'] = obj.quantity
+            obj_dict['background'] = obj.background
+            obj_dict['marks']=[{'id':mark.id,'name':mark.id,'description':mark.descrition} for mark in obj.marks.all()]
+            
+            #whether detailed information is bulit
+            if with_detail:
+                # create of the question under the questionnaire
+                obj_dict['question']=[]
+                for question in obj.question_set.all():
+                    #create siglne question
+                    question_dict=dict()
+                    question_dict['id']=question.id
+                    question_dict['title']=question.title
+                    question_dict['is_checkbox']=question.is_checkbox
+                    #create the question item
+
+                    question_dict['item']=[{
+                        'id':item.id,
+                        'content':item.id
+                    } for item in question.quesionitem_set.all()]
+                    obj_dict['question'].append(question_dict)
+            data.append(obj_dict)
+        return json_response(data)
+
+
+
+        
+            
+        
